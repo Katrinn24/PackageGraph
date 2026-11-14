@@ -1,0 +1,7 @@
+packageName: "serde"
+repository: "https://github.com/serde-rs/serde"
+testRepository: false
+version: "1.0.0"
+outputFile: "dependency-graph.png"
+maxDepth: 3
+filterSubstring: ""
