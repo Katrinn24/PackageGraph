@@ -1,3 +1,5 @@
+import java.util.List;
+
 public class Main {
     public static void main(String[] args) {
         String configPath = args.length > 0
@@ -7,8 +9,33 @@ public class Main {
         try {
             Config config = ConfigLoader.load(configPath);
             printConfig(config);
+
+            if (!config.testRepository()) {
+                List<String> dependencies =
+                        CargoDependencyReader.readDependencies(
+                                config.repository(),
+                                config.version(),
+                                config.packageName()
+                        );
+
+                System.out.println("\n=== Direct dependencies ===");
+
+                if (dependencies.isEmpty()) {
+                    System.out.println("Зависимости не найдены.");
+                } else {
+                    for (String dependency : dependencies) {
+                        System.out.println("- " + dependency);
+                    }
+                }
+            } else {
+                System.out.println(
+                        "\nТестовый режим: получение зависимостей "
+                                + "будет реализовано отдельно."
+                );
+            }
+
         } catch (Exception e) {
-            System.err.println("Ошибка конфигурации: " + e.getMessage());
+            System.err.println("Ошибка: " + e.getMessage());
             System.exit(1);
         }
     }
@@ -25,4 +52,3 @@ public class Main {
         System.out.println("====================================");
     }
 }
-
