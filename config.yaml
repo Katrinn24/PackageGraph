@@ -1,7 +1,7 @@
-packageName: "serde"
-repository: "https://github.com/serde-rs/serde"
-testRepository: false
+packageName: A
+repository: tests/test-repository.txt
+testRepository: true
 version: "1.0.0"
-outputFile: "dependency-graph.png"
-maxDepth: 3
+outputFile: dependency-graph.png
+maxDepth: 10
 filterSubstring: ""

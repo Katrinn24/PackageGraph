@@ -1,4 +1,5 @@
 import java.util.List;
+import java.util.Map;
 
 public class Main {
     public static void main(String[] args) {
@@ -27,12 +28,46 @@ public class Main {
                         System.out.println("- " + dependency);
                     }
                 }
+
             } else {
-                System.out.println(
-                        "\nТестовый режим: получение зависимостей "
-                                + "будет реализовано отдельно."
+                Map<String, List<String>> graph =
+                        TestGraphReader.readGraph(config.repository());
+
+                System.out.println("\n=== Dependency analysis ===");
+
+                List<String> dependencies = DependencyAnalyzer.analyze(
+                        graph,
+                        config.packageName(),
+                        config.maxDepth(),
+                        config.filterSubstring()
                 );
+
+                if (dependencies.isEmpty()) {
+                    System.out.println("Зависимости не найдены.");
+                } else {
+                    for (String dependency : dependencies) {
+                        System.out.println("- " + dependency);
+                    }
+                }
+
+                List<String> cycles = DependencyAnalyzer.findCycles(
+                        graph,
+                        config.packageName(),
+                        config.maxDepth(),
+                        config.filterSubstring()
+                );
+
+                System.out.println("\n=== Cycles ===");
+
+                if (cycles.isEmpty()) {
+                    System.out.println("Циклические зависимости не найдены.");
+                } else {
+                    for (String cycle : cycles) {
+                        System.out.println("Цикл: " + cycle);
+                    }
+                }
             }
+
 
         } catch (Exception e) {
             System.err.println("Ошибка: " + e.getMessage());
