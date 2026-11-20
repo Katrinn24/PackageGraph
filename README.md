@@ -52,6 +52,22 @@ filterSubstring: ""
 | `maxDepth` | Максимальная глубина анализа |
 | `filterSubstring` | Подстрока для исключения пакетов из анализа |
 
+### Проверка ошибок конфигурации
+
+В отдельной копии `config.yaml` подставь одно неправильное значение из
+таблицы и передай путь к этой копии при запуске. Программа назовёт параметр
+с ошибкой и завершится с кодом `1`.
+
+| Параметр | Пример неправильного значения |
+|---|---|
+| `packageName` | `"A!"` |
+| `repository` | `tests/missing.txt` при `testRepository: true` |
+| `testRepository` | `"true"` в кавычках |
+| `version` | `"oops"` |
+| `outputFile` | `graph.jpg` |
+| `maxDepth` | `-1` |
+| `filterSubstring` | `false` без кавычек |
+
 ## Тестовый репозиторий
 
 В тестовом режиме приложение использует текстовый файл, в котором каждая строка описывает пакет и его зависимости.
@@ -68,13 +84,19 @@ E:
 
 ## Запуск
 
-Для сборки проекта используется Maven.
+Для запуска нужны JDK 21 и Maven. Из корня проекта:
 
-В IntelliJ IDEA открой окно Maven и выбери:
+```powershell
+mvn compile
+.\run.bat
+.\run.bat tests/visualization/rand.yaml --visualize
+```
 
-`Lifecycle → compile`
+В Linux и macOS те же параметры можно передать скрипту `./run.sh`.
+При нестандартном пути к локальному кэшу Maven задай `MAVEN_REPO_LOCAL`.
 
-Для запуска приложения выполни запуск класса `Main`.
+В IntelliJ IDEA импортируй `pom.xml` и запусти класс `Main`.
+Путь к YAML-файлу и флаг режима передаются через **Program arguments**.
 
 ## Обратные зависимости
 
@@ -83,7 +105,7 @@ E:
 Из терминала можно запустить тот же режим с настройками из `config.yaml`.
 
 ```powershell
-mvn compile exec:java '-Dexec.args=--reverse'
+.\run.bat --reverse
 ```
 
 Для другого YAML-файла передай в **Program arguments** его путь перед флагом, например `demo.yaml --reverse`.
@@ -99,11 +121,12 @@ mvn compile exec:java '-Dexec.args=--reverse'
 
 ## Запуск тестов
 
-В окне Maven выбери:
+```powershell
+mvn test
+```
 
-`Lifecycle → test`
-
-В проекте используются автоматические тесты JUnit 5.
+В IntelliJ IDEA ту же команду можно запустить из окна Maven через `Lifecycle → test`.
+Тесты используют JUnit 5.
 
 ## Визуализация
 

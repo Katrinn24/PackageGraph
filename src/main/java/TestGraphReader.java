@@ -7,76 +7,61 @@ import java.util.List;
 import java.util.Map;
 
 public class TestGraphReader {
+    private static final int PACKAGE_AND_DEPENDENCIES = 2;
+    private static final String PACKAGE_NAME = "[A-Z]+";
 
-    public static Map<String, List<String>> readGraph(String filePath)
-            throws IOException {
-
+    /** Reads the test graph, validating package names and all dependency references. */
+    public static Map<String, List<String>> readGraph(String filePath) throws IOException {
         Map<String, List<String>> graph = new LinkedHashMap<>();
-
         List<String> lines = Files.readAllLines(Path.of(filePath));
-
         for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i).trim();
-
-            if (line.isEmpty()) {
-                continue;
+            String line = lines.get(i).strip();
+            if (!line.isEmpty()) {
+                readEntry(graph, line, i + 1);
             }
-
-            String[] parts = line.split(":", -1);
-
-            if (parts.length != 2) {
-                throw new IllegalArgumentException(
-                        "Неверный формат строки " + (i + 1)
-                );
-            }
-
-            String packageName = parts[0].trim();
-
-            if (!packageName.matches("[A-Z]+")) {
-                throw new IllegalArgumentException(
-                        "Некорректное имя пакета в строке " + (i + 1)
-                );
-            }
-
-            if (graph.containsKey(packageName)) {
-                throw new IllegalArgumentException(
-                        "Пакет повторяется: " + packageName
-                );
-            }
-
-            List<String> dependencies = new ArrayList<>();
-
-            String dependencyText = parts[1].trim();
-
-            if (!dependencyText.isEmpty()) {
-                for (String dependency : dependencyText.split(",")) {
-                    String name = dependency.trim();
-
-                    if (!name.matches("[A-Z]+")) {
-                        throw new IllegalArgumentException(
-                                "Некорректная зависимость в строке " + (i + 1)
-                        );
-                    }
-
-                    dependencies.add(name);
-                }
-            }
-
-            graph.put(packageName, dependencies);
         }
+        validateDependencies(graph);
+        return graph;
+    }
 
-        // Проверяем, что все упомянутые зависимости описаны в файле.
-        for (Map.Entry<String, List<String>> entry : graph.entrySet()) {
-            for (String dependency : entry.getValue()) {
+    private static void readEntry(Map<String, List<String>> graph, String line, int lineNumber) {
+        String[] parts = line.split(":", -1);
+        if (parts.length != PACKAGE_AND_DEPENDENCIES) {
+            throw new IllegalArgumentException("Неверный формат строки " + lineNumber);
+        }
+        String name = parts[0].strip();
+        if (!name.matches(PACKAGE_NAME)) {
+            throw new IllegalArgumentException("Некорректное имя пакета в строке " + lineNumber);
+        }
+        if (graph.containsKey(name)) {
+            throw new IllegalArgumentException("Пакет повторяется: " + name);
+        }
+        graph.put(name, readDependencies(parts[1].strip(), lineNumber));
+    }
+
+    private static List<String> readDependencies(String text, int lineNumber) {
+        List<String> dependencies = new ArrayList<>();
+        if (text.isEmpty()) {
+            return dependencies;
+        }
+        for (String dependency : text.split(",", -1)) {
+            String name = dependency.strip();
+            if (!name.matches(PACKAGE_NAME)) {
+                throw new IllegalArgumentException("Некорректная зависимость в строке " + lineNumber);
+            }
+            dependencies.add(name);
+        }
+        return dependencies;
+    }
+
+    private static void validateDependencies(Map<String, List<String>> graph) {
+        for (List<String> dependencies : graph.values()) {
+            for (String dependency : dependencies) {
                 if (!graph.containsKey(dependency)) {
                     throw new IllegalArgumentException(
-                            "Пакет " + dependency
-                                    + " не описан в тестовом файле"
-                    );
+                            "Пакет " + dependency + " не описан в тестовом файле");
                 }
             }
         }
-
-        return graph;
     }
 }

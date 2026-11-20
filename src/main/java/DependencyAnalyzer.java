@@ -1,7 +1,7 @@
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -92,45 +92,41 @@ public class DependencyAnalyzer {
         }
     }
 
-    /** Reports cycles closed by back edges encountered during the bounded DFS. */
+    /** Reports cycles closed by back edges in the graph selected by the bounded DFS. */
     public static List<String> findCycles(
             Map<String, List<String>> graph,
             String startPackage,
             int maxDepth,
             String filterSubstring) {
-        requireStartPackage(graph, startPackage);
-        if (maxDepth <= 0 || isFiltered(startPackage, filterSubstring)) {
-            return new ArrayList<>();
+        Map<String, List<String>> selected = subgraph(
+                graph, startPackage, maxDepth, name -> !isFiltered(name, filterSubstring));
+        if (selected.isEmpty()) {
+            return List.of();
         }
 
         Set<String> cycles = new LinkedHashSet<>();
-        Map<String, Integer> bestDepths = new HashMap<>();
+        Set<String> visited = new HashSet<>();
         Set<String> active = new LinkedHashSet<>();
         Deque<CycleFrame> stack = new ArrayDeque<>();
-        bestDepths.put(startPackage, 0);
+        visited.add(startPackage);
         active.add(startPackage);
-        stack.push(new CycleFrame(startPackage, 0));
+        stack.push(new CycleFrame(startPackage));
 
         while (!stack.isEmpty()) {
             CycleFrame current = stack.peek();
-            List<String> dependencies = graph.get(current.packageName);
-            if (current.depth >= maxDepth
-                    || current.nextIndex >= dependencies.size()) {
+            List<String> dependencies = selected.get(current.packageName);
+            if (current.nextIndex >= dependencies.size()) {
                 stack.pop();
                 active.remove(current.packageName);
                 continue;
             }
 
             String dependency = dependencies.get(current.nextIndex++);
-            if (isFiltered(dependency, filterSubstring)) {
-                continue;
-            }
-            int nextDepth = current.depth + 1;
             if (active.contains(dependency)) {
                 cycles.add(describeCycle(active, dependency));
-            } else if (visitAtSmallerDepth(bestDepths, dependency, nextDepth)) {
+            } else if (visited.add(dependency)) {
                 active.add(dependency);
-                stack.push(new CycleFrame(dependency, nextDepth));
+                stack.push(new CycleFrame(dependency));
             }
         }
 
@@ -168,12 +164,10 @@ public class DependencyAnalyzer {
 
     private static class CycleFrame {
         private final String packageName;
-        private final int depth;
         private int nextIndex = 0;
 
-        private CycleFrame(String packageName, int depth) {
+        private CycleFrame(String packageName) {
             this.packageName = packageName;
-            this.depth = depth;
         }
     }
 

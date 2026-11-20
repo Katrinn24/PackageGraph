@@ -24,18 +24,27 @@ public class ConfigLoader {
 
     public static Config load(String fileName) throws IOException {
         Path path = Path.of(fileName);
-
         if (!Files.isRegularFile(path) || !Files.isReadable(path)) {
             throw new IOException("Файл конфигурации не найден: " + fileName);
         }
 
-        Object data;
-        LoaderOptions options = new LoaderOptions();
-        Yaml yaml = new Yaml(new SafeConstructor(options));
+        Map<String, Object> values = readValues(path);
+        validateKeys(values);
+        return new Config(
+                getString(values, "packageName"),
+                getString(values, "repository"),
+                getBoolean(values, "testRepository"),
+                getString(values, "version"),
+                getString(values, "outputFile"),
+                getInteger(values, "maxDepth"),
+                getString(values, "filterSubstring")
+        );
+    }
 
-        try (Reader reader = Files.newBufferedReader(
-                path, StandardCharsets.UTF_8
-        )) {
+    private static Map<String, Object> readValues(Path path) throws IOException {
+        Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
+        Object data;
+        try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
             data = yaml.load(reader);
         }
 
@@ -55,18 +64,7 @@ public class ConfigLoader {
             }
             values.put(key, entry.getValue());
         }
-
-        validateKeys(values);
-
-        return new Config(
-                getString(values, "packageName"),
-                getString(values, "repository"),
-                getBoolean(values, "testRepository"),
-                getString(values, "version"),
-                getString(values, "outputFile"),
-                getInteger(values, "maxDepth"),
-                getString(values, "filterSubstring")
-        );
+        return values;
     }
 
     private static void validateKeys(Map<String, Object> values) {

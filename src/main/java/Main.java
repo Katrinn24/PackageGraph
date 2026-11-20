@@ -23,13 +23,7 @@ public class Main {
         String last = args.length == 0 ? "" : args[args.length - 1];
         boolean reverse = REVERSE_FLAG.equals(last);
         boolean visualize = VISUALIZE_FLAG.equals(last);
-        int configArguments = args.length - (reverse || visualize ? 1 : 0);
-        if (configArguments > 1 || (configArguments == 1 && args[0].startsWith("--"))) {
-            throw new IllegalArgumentException("Формат запуска: Main [config.yaml] [--reverse | --visualize]");
-        }
-
-        String configPath = configArguments == 1 ? args[0] : "config.yaml";
-        Config config = ConfigLoader.load(configPath);
+        Config config = ConfigLoader.load(configPath(args, reverse || visualize));
         if (reverse && !config.testRepository()) {
             throw new IllegalArgumentException(
                     "Для --reverse включите testRepository в конфигурации"
@@ -44,6 +38,14 @@ public class Main {
         } else {
             printCargoDependencies(config);
         }
+    }
+
+    private static String configPath(String[] args, boolean hasMode) {
+        int configArguments = args.length - (hasMode ? 1 : 0);
+        if (configArguments > 1 || (configArguments == 1 && args[0].startsWith("--"))) {
+            throw new IllegalArgumentException("Формат запуска: Main [config.yaml] [--reverse | --visualize]");
+        }
+        return configArguments == 1 ? args[0] : "config.yaml";
     }
 
     private static void visualize(Config config) throws IOException, InterruptedException {
