@@ -99,4 +99,30 @@ class DependencyAnalyzerTest {
                 )
         );
     }
+
+    @Test
+    void shouldFindDirectAndTransitiveReverseDependencies() {
+        Map<String, List<String>> graph = Map.of(
+                "A", List.of("B"), "B", List.of("C"), "C", List.of(), "E", List.of()
+        );
+
+        assertEquals(List.of("B", "A"),
+                DependencyAnalyzer.analyzeReverse(graph, "C", 2, ""));
+        assertEquals(List.of("B"),
+                DependencyAnalyzer.analyzeReverse(graph, "C", 1, ""));
+        assertEquals(List.of(),
+                DependencyAnalyzer.analyzeReverse(graph, "C", 2, "B"));
+        assertEquals(List.of(),
+                DependencyAnalyzer.analyzeReverse(graph, "E", 2, ""));
+    }
+
+    @Test
+    void shouldExcludeStartingPackageWhenReverseDependenciesHaveACycle() {
+        Map<String, List<String>> graph = Map.of(
+                "A", List.of("B"), "B", List.of("C"), "C", List.of("A")
+        );
+
+        assertEquals(List.of("C", "B"),
+                DependencyAnalyzer.analyzeReverse(graph, "A", 10, ""));
+    }
 }

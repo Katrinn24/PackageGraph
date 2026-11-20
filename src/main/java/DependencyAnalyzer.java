@@ -45,6 +45,22 @@ public class DependencyAnalyzer {
         return new ArrayList<>(bestDepths.keySet());
     }
 
+    /** Finds packages that depend directly or transitively on the selected package. */
+    public static List<String> analyzeReverse(
+            Map<String, List<String>> graph,
+            String startPackage,
+            int maxDepth,
+            String filterSubstring) {
+        Map<String, List<String>> reversed = new LinkedHashMap<>();
+        graph.keySet().forEach(name -> reversed.put(name, new ArrayList<>()));
+        graph.forEach((name, dependencies) -> {
+            for (String dependency : dependencies) {
+                reversed.get(dependency).add(name);
+            }
+        });
+        return analyze(reversed, startPackage, maxDepth, filterSubstring);
+    }
+
     private static void pushDependencies(
             Deque<Frame> stack, List<String> dependencies, int depth) {
         for (int i = dependencies.size() - 1; i >= 0; i--) {
