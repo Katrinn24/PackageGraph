@@ -32,6 +32,10 @@ bin/
 # Maven
 target/
 
+# Generated dependency diagrams
+*.png
+*.puml
+
 # IntelliJ IDEA project files
 *.iml
 .idea/

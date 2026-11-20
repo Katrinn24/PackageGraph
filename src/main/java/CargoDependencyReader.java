@@ -3,6 +3,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -18,39 +19,36 @@ public class CargoDependencyReader {
     private static final Set<String> DEPENDENCY_TABLES = Set.of(
             "dependencies", "build-dependencies", "dev-dependencies");
     private static final int TARGET_DEPENDENCY_TABLE_INDEX = 2;
+    private static final int HTTP_OK = 200;
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(12);
 
     public static List<String> readDependencies(
             String repository, String version, String packageName
     ) throws IOException, InterruptedException {
-        String cargoToml = fetchCargoToml(
-                repository, version, packageName
-        );
+        String cargoToml = fetchFile(repository, version,
+                List.of(packageName + "/Cargo.toml", "Cargo.toml"));
         return parseDependencies(cargoToml);
     }
 
+    static CargoLockGraph readLockGraph(Config config) throws IOException, InterruptedException {
+        String lock = fetchFile(config.repository(), config.version(),
+                List.of("Cargo.lock", config.packageName() + "/Cargo.lock"));
+        return CargoLockGraph.parse(lock, config.packageName(), config.version());
+    }
 
-    private static String fetchCargoToml(
-            String repository, String version, String packageName
+    private static String fetchFile(
+            String repository, String version, List<String> filePaths
     ) throws IOException, InterruptedException {
         String baseUrl = buildRawUrl(repository);
-        HttpClient client = HttpClient.newHttpClient();
-
-        List<String> filePaths = List.of(
-                packageName + "/Cargo.toml",
-                "Cargo.toml"
-        );
-
-        List<String> tags = List.of(
-                "v" + version,
-                version
-        );
-
+        HttpClient client = HttpClient.newBuilder().connectTimeout(REQUEST_TIMEOUT).build();
+        List<String> tags = List.of("v" + version, version);
         for (String tag : tags) {
             for (String filePath : filePaths) {
                 String url = baseUrl + "/" + tag + "/" + filePath;
 
                 HttpRequest request = HttpRequest.newBuilder()
                         .uri(URI.create(url))
+                        .timeout(REQUEST_TIMEOUT)
                         .GET()
                         .build();
 
@@ -59,16 +57,14 @@ public class CargoDependencyReader {
                         HttpResponse.BodyHandlers.ofString()
                 );
 
-                if (response.statusCode() == 200) {
-                    System.out.println("Cargo.toml получен: " + url);
+                if (response.statusCode() == HTTP_OK) {
+                    System.out.println("Файл получен: " + url);
                     return response.body();
                 }
             }
         }
 
-        throw new IOException(
-                "Cargo.toml не найден для версии " + version
-        );
+        throw new IOException(filePaths.getFirst() + " не найден для версии " + version);
     }
 
 

@@ -1,0 +1,40 @@
+# Test data reconstructed from the example in the Cargo Book's cargo tree chapter.
+# This is a fixture, not a downloaded lockfile.
+version = 4
+
+[[package]]
+name = "cfg-if"
+version = "0.1.10"
+
+[[package]]
+name = "getrandom"
+version = "0.1.14"
+dependencies = ["cfg-if", "libc"]
+
+[[package]]
+name = "libc"
+version = "0.2.68"
+
+[[package]]
+name = "ppv-lite86"
+version = "0.2.6"
+
+[[package]]
+name = "rand"
+version = "0.7.3"
+dependencies = [
+ "getrandom",
+ "libc",
+ "rand_chacha",
+ "rand_core",
+]
+
+[[package]]
+name = "rand_chacha"
+version = "0.2.2"
+dependencies = ["ppv-lite86", "rand_core"]
+
+[[package]]
+name = "rand_core"
+version = "0.5.1"
+dependencies = ["getrandom"]

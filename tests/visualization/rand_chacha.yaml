@@ -1,0 +1,7 @@
+packageName: rand_chacha
+repository: tests/visualization/cargo-book-example.lock
+testRepository: true
+version: "0.2.2"
+outputFile: target/diagrams/rand_chacha.png
+maxDepth: 4
+filterSubstring: ""

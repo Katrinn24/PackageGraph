@@ -1,9 +1,14 @@
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 public class Main {
     private static final String REVERSE_FLAG = "--reverse";
+    private static final String VISUALIZE_FLAG = "--visualize";
 
     public static void main(String[] args) {
         try {
@@ -15,10 +20,12 @@ public class Main {
     }
 
     private static void run(String[] args) throws Exception {
-        boolean reverse = args.length > 0 && REVERSE_FLAG.equals(args[args.length - 1]);
-        int configArguments = args.length - (reverse ? 1 : 0);
+        String last = args.length == 0 ? "" : args[args.length - 1];
+        boolean reverse = REVERSE_FLAG.equals(last);
+        boolean visualize = VISUALIZE_FLAG.equals(last);
+        int configArguments = args.length - (reverse || visualize ? 1 : 0);
         if (configArguments > 1 || (configArguments == 1 && args[0].startsWith("--"))) {
-            throw new IllegalArgumentException("Формат запуска: Main [config.yaml] [--reverse]");
+            throw new IllegalArgumentException("Формат запуска: Main [config.yaml] [--reverse | --visualize]");
         }
 
         String configPath = configArguments == 1 ? args[0] : "config.yaml";
@@ -30,11 +37,43 @@ public class Main {
         }
         printConfig(config);
 
-        if (config.testRepository()) {
+        if (visualize) {
+            visualize(config);
+        } else if (config.testRepository()) {
             analyzeTestGraph(config, reverse);
         } else {
             printCargoDependencies(config);
         }
+    }
+
+    private static void visualize(Config config) throws IOException, InterruptedException {
+        if (!config.testRepository() || config.repository().endsWith(".lock")) {
+            CargoLockGraph graph = config.testRepository()
+                    ? CargoLockGraph.parse(Files.readString(Path.of(config.repository())),
+                        config.packageName(), config.version())
+                    : CargoDependencyReader.readLockGraph(config);
+            Predicate<String> include = id -> includePackage(graph.nameOf(id), config);
+            writeGraph(config, graph.edges(), graph.root(), include, graph.labels()::get);
+            return;
+        }
+
+        Map<String, List<String>> graph = TestGraphReader.readGraph(config.repository());
+        writeGraph(config, graph, config.packageName(), name -> includePackage(name, config), Function.identity());
+    }
+
+    private static void writeGraph(
+            Config config, Map<String, List<String>> graph, String root,
+            Predicate<String> include, Function<String, String> label) throws IOException {
+        Map<String, List<String>> selected = DependencyAnalyzer.subgraph(
+                graph, root, config.maxDepth(), include);
+        Path png = Path.of(config.outputFile());
+        Path puml = GraphVisualization.write(png, selected, root, label);
+        System.out.println("PlantUML: " + puml);
+        System.out.println("PNG: " + png.toAbsolutePath().normalize());
+    }
+
+    private static boolean includePackage(String name, Config config) {
+        return config.filterSubstring().isEmpty() || !name.contains(config.filterSubstring());
     }
 
     private static void printCargoDependencies(Config config) throws IOException, InterruptedException {

@@ -1,0 +1,7 @@
+packageName: getrandom
+repository: tests/visualization/cargo-book-example.lock
+testRepository: true
+version: "0.1.14"
+outputFile: target/diagrams/getrandom.png
+maxDepth: 4
+filterSubstring: ""

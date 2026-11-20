@@ -7,6 +7,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 
 public class DependencyAnalyzer {
 
@@ -20,6 +21,30 @@ public class DependencyAnalyzer {
             int maxDepth,
             String filterSubstring) {
 
+        Map<String, Integer> depths = findDepths(
+                graph, startPackage, maxDepth, name -> !isFiltered(name, filterSubstring));
+        depths.remove(startPackage);
+        return new ArrayList<>(depths.keySet());
+    }
+
+    /** Returns the vertices and edges reached within the depth limit. */
+    public static Map<String, List<String>> subgraph(
+            Map<String, List<String>> graph, String startPackage,
+            int maxDepth, Predicate<String> include) {
+        Map<String, Integer> depths = findDepths(graph, startPackage, maxDepth, include);
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        depths.forEach((name, depth) -> {
+            List<String> edges = depth < maxDepth
+                    ? graph.get(name).stream().filter(depths::containsKey).distinct().toList()
+                    : List.of();
+            result.put(name, edges);
+        });
+        return result;
+    }
+
+    private static Map<String, Integer> findDepths(
+            Map<String, List<String>> graph, String startPackage,
+            int maxDepth, Predicate<String> include) {
         requireStartPackage(graph, startPackage);
         Map<String, Integer> bestDepths = new LinkedHashMap<>();
         Deque<Frame> stack = new ArrayDeque<>();
@@ -31,7 +56,7 @@ public class DependencyAnalyzer {
             int depth = current.depth();
 
             if (depth > maxDepth
-                    || isFiltered(packageName, filterSubstring)
+                    || !include.test(packageName)
                     || !visitAtSmallerDepth(bestDepths, packageName, depth)) {
                 continue;
             }
@@ -41,8 +66,7 @@ public class DependencyAnalyzer {
             }
         }
 
-        bestDepths.remove(startPackage);
-        return new ArrayList<>(bestDepths.keySet());
+        return bestDepths;
     }
 
     /** Finds packages that depend directly or transitively on the selected package. */

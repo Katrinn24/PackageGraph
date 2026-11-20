@@ -1,0 +1,7 @@
+packageName: rand
+repository: tests/visualization/cargo-book-example.lock
+testRepository: true
+version: "0.7.3"
+outputFile: target/diagrams/rand.png
+maxDepth: 4
+filterSubstring: ""
