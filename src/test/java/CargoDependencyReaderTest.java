@@ -3,8 +3,26 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CargoDependencyReaderTest {
+    @Test
+    void shouldUseOnlyManifestWithTheRequestedPackageAndVersion() {
+        String manifest = """
+                [package] # Root package
+                name = "ripgrep"
+                version = '14.1.1' # Release version
+                [package.metadata]
+                name = "another-package"
+                version = "9.0.0"
+                """;
+
+        assertTrue(CargoDependencyReader.matchesPackage(manifest, "ripgrep", "14.1.1"));
+        assertFalse(CargoDependencyReader.matchesPackage(manifest, "ripgrep", "9.0.0"));
+        assertFalse(CargoDependencyReader.matchesPackage(manifest, "another-package", "14.1.1"));
+    }
+
     @Test
     void shouldReadTableDependenciesWithoutTreatingTheirFieldsAsPackages() {
         String manifest = """

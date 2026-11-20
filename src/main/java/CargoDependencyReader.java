@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 public class CargoDependencyReader {
@@ -16,6 +17,9 @@ public class CargoDependencyReader {
     private static final Pattern TABLE_HEADER = Pattern.compile(
             "^\\[\\h*(" + KEY_PATH + ")\\h*]\\h*(?:#.*)?$");
     private static final Pattern ENTRY = Pattern.compile("^(" + KEY_PATH + ")\\h*=");
+    private static final Pattern STRING_VALUE = Pattern.compile(
+            "^\\h*(\"[^\"\\r\\n]*\"|'[^'\\r\\n]*')\\h*(?:#.*)?$");
+    private static final Pattern REPOSITORY_PATH = Pattern.compile("^/([A-Za-z0-9-]+)/([\\w.-]+)/?$");
     private static final Set<String> DEPENDENCY_TABLES = Set.of(
             "dependencies", "build-dependencies", "dev-dependencies");
     private static final int TARGET_DEPENDENCY_TABLE_INDEX = 2;
@@ -26,18 +30,21 @@ public class CargoDependencyReader {
             String repository, String version, String packageName
     ) throws IOException, InterruptedException {
         String cargoToml = fetchFile(repository, version,
-                List.of(packageName + "/Cargo.toml", "Cargo.toml"));
+                List.of(packageName + "/Cargo.toml", "Cargo.toml"), "Cargo.toml пакета " + packageName,
+                manifest -> matchesPackage(manifest, packageName, version));
         return parseDependencies(cargoToml);
     }
 
     static CargoLockGraph readLockGraph(Config config) throws IOException, InterruptedException {
         String lock = fetchFile(config.repository(), config.version(),
-                List.of("Cargo.lock", config.packageName() + "/Cargo.lock"));
+                List.of("Cargo.lock", config.packageName() + "/Cargo.lock"), "Cargo.lock",
+                content -> true);
         return CargoLockGraph.parse(lock, config.packageName(), config.version());
     }
 
     private static String fetchFile(
-            String repository, String version, List<String> filePaths
+            String repository, String version, List<String> filePaths,
+            String description, Predicate<String> matches
     ) throws IOException, InterruptedException {
         String baseUrl = buildRawUrl(repository);
         HttpClient client = HttpClient.newBuilder().connectTimeout(REQUEST_TIMEOUT).build();
@@ -57,14 +64,14 @@ public class CargoDependencyReader {
                         HttpResponse.BodyHandlers.ofString()
                 );
 
-                if (response.statusCode() == HTTP_OK) {
+                if (response.statusCode() == HTTP_OK && matches.test(response.body())) {
                     System.out.println("Файл получен: " + url);
                     return response.body();
                 }
             }
         }
 
-        throw new IOException(filePaths.getFirst() + " не найден для версии " + version);
+        throw new IOException(description + " не найден для версии " + version);
     }
 
 
@@ -78,18 +85,48 @@ public class CargoDependencyReader {
             );
         }
 
-        String[] parts = uri.getPath().split("/");
-        if (parts.length < 3) {
+        var path = REPOSITORY_PATH.matcher(uri.getPath());
+        if (!path.matches()) {
             throw new IllegalArgumentException(
                     "Некорректный адрес GitHub-репозитория"
             );
         }
 
-        String owner = parts[1];
-        String repo = parts[2].replaceAll("\\.git$", "");
+        String owner = path.group(1);
+        String repo = path.group(2).replaceAll("\\.git$", "");
 
         return "https://raw.githubusercontent.com/"
                 + owner + "/" + repo;
+    }
+
+    /** Checks the explicit package identity before using a downloaded manifest. */
+    static boolean matchesPackage(String manifest, String expectedName, String expectedVersion) {
+        boolean inPackage = false;
+        String name = "";
+        String version = "";
+        for (String originalLine : manifest.split("\\R")) {
+            String line = originalLine.strip();
+            if (line.startsWith("[")) {
+                var table = TABLE_HEADER.matcher(line);
+                inPackage = table.matches() && splitKeys(table.group(1)).equals(List.of("package"));
+                continue;
+            }
+            if (inPackage) {
+                var entry = ENTRY.matcher(line);
+                if (entry.find()) {
+                    List<String> key = splitKeys(entry.group(1));
+                    var value = STRING_VALUE.matcher(line.substring(entry.end()));
+                    if (value.matches()) {
+                        if (key.equals(List.of("name"))) {
+                            name = unquoteKey(value.group(1));
+                        } else if (key.equals(List.of("version"))) {
+                            version = unquoteKey(value.group(1));
+                        }
+                    }
+                }
+            }
+        }
+        return name.equals(expectedName) && version.equals(expectedVersion);
     }
 
 

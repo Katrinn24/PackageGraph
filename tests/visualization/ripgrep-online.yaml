@@ -1,0 +1,7 @@
+packageName: ripgrep
+repository: https://github.com/BurntSushi/ripgrep
+testRepository: false
+version: "14.1.1"
+outputFile: target/diagrams/ripgrep.png
+maxDepth: 2
+filterSubstring: ""
