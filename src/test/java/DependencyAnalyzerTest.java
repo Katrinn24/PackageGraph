@@ -37,6 +37,33 @@ class DependencyAnalyzerTest {
     }
 
     @Test
+    void shouldExpandPackageReachedAgainAtSmallerDepth() {
+        List<String> result = DependencyAnalyzer.analyze(
+                createGraphWithShortcut(), "A", 3, ""
+        );
+        assertEquals(List.of("B", "C", "X", "Y"), result);
+    }
+
+    @Test
+    void shouldFindCycleWhenShortcutLeavesEnoughDepth() {
+        Map<String, List<String>> graph = createGraphWithShortcut();
+
+        assertTrue(DependencyAnalyzer.findCycles(graph, "A", 2, "").isEmpty());
+        assertEquals(List.of("X -> Y -> X"),
+                DependencyAnalyzer.findCycles(graph, "A", 3, ""));
+    }
+
+    private Map<String, List<String>> createGraphWithShortcut() {
+        return Map.of(
+                "A", List.of("B", "X"),
+                "B", List.of("C"),
+                "C", List.of("X"),
+                "X", List.of("Y"),
+                "Y", List.of("X")
+        );
+    }
+
+    @Test
     void shouldExcludePackagesBySubstring() {
         List<String> result = DependencyAnalyzer.analyze(
                 createGraph(), "A", 10, "B"
