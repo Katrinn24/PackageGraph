@@ -186,13 +186,30 @@ Cargo скрывает зависимости для другой платфор
 
 ```powershell
 git clone --depth 1 --branch 14.1.1 https://github.com/BurntSushi/ripgrep.git target/ripgrep-source
-cargo tree --manifest-path target/ripgrep-source/Cargo.toml --locked --package ripgrep@14.1.1 --target all --depth 2
+cargo tree --manifest-path target/ripgrep-source/Cargo.toml --locked `
+  --package ripgrep@14.1.1 --target all --depth 2 --prefix depth --no-dedupe
 ```
 
-Сопоставь связи в дереве с `target/diagrams/ripgrep.puml`. Ключ `--target all`
-включает зависимости для всех платформ. Отличия возможны из-за активных
-возможностей сборки и способа отображения общих узлов. Сопоставление
-требует доступа к GitHub и, для Cargo, доступа к реестру зависимостей.
+Результаты сравнения на теге `14.1.1` (коммит `4649aa9`) при глубине 2:
+
+| Источник | Уникальных узлов | Уникальных рёбер |
+|---|---:|---:|
+| PackageGraph, `target/diagrams/ripgrep.puml` | 34 | 47 |
+| Cargo 1.100.0, `cargo tree` | 32 | 41 |
+
+Сравнение выполнено по направленным парам «пакет с версией → зависимость с
+версией». Все 41 ребро из Cargo присутствуют в графе PackageGraph. Ещё шесть
+связей из lock-файла отсутствуют в дереве для выбранного запуска.
+
+| Причина | Рёбра, которые показывает только PackageGraph |
+|---|---|
+| Опциональные зависимости без включённой возможности | `bstr → serde`, `grep → grep-pcre2` |
+| Зависимости для разработки и тестирования вложенных пакетов | `grep → termcolor`, `grep → walkdir`, `ignore → bstr`, `ignore → crossbeam-channel` |
+
+Ключ `--target all` включает зависимости для всех платформ. PackageGraph
+отображает связи, записанные в `Cargo.lock`. Cargo строит дерево для выбранного
+пакета и включённых возможностей, поэтому тестовые зависимости его
+вложенных пакетов в этом выводе отсутствуют.
 
 ## Ограничения
 
